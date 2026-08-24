@@ -18,6 +18,7 @@ import {
   ChevronRight
 } from "lucide-react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { GlassCard } from "@/components/ui/GlassCard";
 
 // Mock Data for Search
@@ -40,6 +41,11 @@ const MOCK_NOTIFICATIONS = [
 
 export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  
+  const userName = session?.user?.name || "Alex H.";
+  const firstName = userName.split(" ")[0];
+  const initial = userName.charAt(0).toUpperCase();
   
   // State for modals
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -183,12 +189,12 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
           {/* Profile Trigger */}
           <Link href="/profile" aria-label="Go to Profile" className="flex items-center gap-3 cursor-pointer group">
             <div className="text-right hidden sm:block">
-              <p className="text-sm font-semibold text-white leading-tight group-hover:text-primary-foreground transition-colors">Alex H.</p>
-              <p className="text-xs text-white/50">DSA Course</p>
+              <p className="text-sm font-semibold text-white leading-tight group-hover:text-primary-foreground transition-colors">{firstName}</p>
+              <p className="text-xs text-white/50">Explorer</p>
             </div>
             <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary to-blue-500 p-[2px] shadow-[0_0_15px_rgba(124,58,237,0.3)]">
               <div className="w-full h-full rounded-full bg-[#151226] border-2 border-[#151226] overflow-hidden group-hover:scale-105 transition-transform">
-                <div className="w-full h-full bg-white/10 flex items-center justify-center text-sm font-bold text-white">A</div>
+                <div className="w-full h-full bg-white/10 flex items-center justify-center text-sm font-bold text-white">{initial}</div>
               </div>
             </div>
           </Link>

@@ -9,7 +9,7 @@ export async function POST() {
     await connectToDatabase();
 
     // 1. Create a test user if one doesn't exist
-    const testEmail = 'test@example.com';
+    const testEmail = 'subhrojyotidas9e@gmail.com';
     let user = await User.findOne({ email: testEmail });
     
     if (!user) {
@@ -76,7 +76,7 @@ export async function POST() {
       { userId, title: 'Binary Search', modulesLeft: 7, estimatedMinutesLeft: 75, progressPercentage: 42, themeColor: 'blue', link: '/learn/binary-search' },
     ]);
 
-    return NextResponse.json({ message: 'Seed data generated successfully for user test@example.com (password: password123)' }, { status: 200 });
+    return NextResponse.json({ message: 'Seed data generated successfully for user subhrojyotidas9e@gmail.com (password: password123)' }, { status: 200 });
 
   } catch (error) {
     console.error('Seed error:', error);

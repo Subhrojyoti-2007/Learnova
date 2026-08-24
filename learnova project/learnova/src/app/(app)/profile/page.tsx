@@ -13,9 +13,11 @@ import {
   Award,
   Star,
   CheckCircle2,
-  Zap
+  Zap,
+  Loader2
 } from "lucide-react";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { useEffect, useState } from "react";
 
 const achievements = [
   { title: "First Knowledge Gap Repaired", icon: WrenchIcon, color: "text-amber-400", bg: "bg-amber-400/10", border: "border-amber-400/30" },
@@ -33,6 +35,26 @@ function WrenchIcon(props: any) {
 }
 
 export default function Profile() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const res = await fetch('/api/user/overview');
+        if (res.ok) {
+          const json = await res.json();
+          setData(json);
+        }
+      } catch (error) {
+        console.error("Error fetching profile:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
   const containerVariants = {
     hidden: { opacity: 0 },
     show: {
@@ -45,6 +67,24 @@ export default function Profile() {
     hidden: { opacity: 0, y: 20 },
     show: { opacity: 1, y: 0, transition: { duration: 0.4 } }
   };
+
+  if (loading) {
+    return (
+      <div className="flex-1 w-full h-full flex items-center justify-center min-h-[calc(100vh-100px)]">
+        <Loader2 className="w-10 h-10 text-primary animate-spin" />
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="flex-1 w-full p-6 md:p-10 relative z-10">
+        <p className="text-white">Error loading profile. Please try again later.</p>
+      </div>
+    );
+  }
+
+  const { user, progress } = data;
 
   return (
     <div className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12 relative overflow-x-hidden min-h-[calc(100vh-100px)]">
@@ -78,14 +118,14 @@ export default function Profile() {
               <div className="flex flex-col items-center md:items-start">
                 <div className="w-32 h-32 rounded-full bg-gradient-to-br from-primary to-blue-600 p-1 shadow-[0_0_30px_rgba(124,58,237,0.4)] mb-4 relative">
                   <div className="w-full h-full bg-[#090812] rounded-full flex items-center justify-center overflow-hidden border-4 border-[#110E20]">
-                    <img src="https://api.dicebear.com/7.x/notionists/svg?seed=Alex&backgroundColor=transparent" alt="Alex Sharma" className="w-full h-full object-cover opacity-90" />
+                    <img src={`https://api.dicebear.com/7.x/notionists/svg?seed=${user?.name || 'User'}&backgroundColor=transparent`} alt={user?.name} className="w-full h-full object-cover opacity-90" />
                   </div>
                   <div className="absolute bottom-0 right-2 w-6 h-6 bg-emerald-500 rounded-full border-2 border-[#110E20]" />
                 </div>
-                <h2 className="text-3xl font-bold text-white">Alex Sharma</h2>
+                <h2 className="text-3xl font-bold text-white">{user?.name || 'Learner'}</h2>
                 <div className="flex items-center gap-2 mt-1">
                   <Star className="w-4 h-4 text-amber-400" fill="currentColor" />
-                  <span className="text-sm font-medium text-white/70">DSA Explorer</span>
+                  <span className="text-sm font-medium text-white/70">{user?.fieldOfStudy || 'Explorer'}</span>
                 </div>
               </div>
 
@@ -93,19 +133,19 @@ export default function Profile() {
               <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-3 gap-4 md:mt-4">
                 <div className="bg-[#090812]/50 border border-white/5 rounded-2xl p-6 flex flex-col items-center justify-center text-center">
                   <BrainCircuit className="w-6 h-6 text-primary mb-2" />
-                  <span className="text-3xl font-bold text-white">74%</span>
+                  <span className="text-3xl font-bold text-white">{progress?.overallMastery || 0}%</span>
                   <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest mt-1">Overall Mastery</span>
                 </div>
                 
                 <div className="bg-[#090812]/50 border border-white/5 rounded-2xl p-6 flex flex-col items-center justify-center text-center">
                   <Flame className="w-6 h-6 text-orange-400 mb-2" />
-                  <span className="text-3xl font-bold text-white">8<span className="text-lg text-white/50"> days</span></span>
+                  <span className="text-3xl font-bold text-white">{progress?.learningStreakDays || 0}<span className="text-lg text-white/50"> days</span></span>
                   <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest mt-1">Current Streak</span>
                 </div>
                 
                 <div className="bg-[#090812]/50 border border-white/5 rounded-2xl p-6 flex flex-col items-center justify-center text-center">
                   <CheckCircle2 className="w-6 h-6 text-emerald-400 mb-2" />
-                  <span className="text-3xl font-bold text-white">28</span>
+                  <span className="text-3xl font-bold text-white">{progress?.conceptsMastered || 0}</span>
                   <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest mt-1">Concepts Mastered</span>
                 </div>
               </div>
@@ -121,25 +161,25 @@ export default function Profile() {
           <GlassCard className="p-5 border-white/5 flex flex-col">
             <Target className="w-5 h-5 text-rose-400 mb-3" />
             <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-1">Learning Goals</span>
-            <span className="text-sm font-medium text-white">Master Graph Theory</span>
+            <span className="text-sm font-medium text-white">{user?.learningGoals || 'Not specified'}</span>
           </GlassCard>
           
           <GlassCard className="p-5 border-white/5 flex flex-col">
             <Clock className="w-5 h-5 text-blue-400 mb-3" />
-            <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-1">Daily Study Time</span>
-            <span className="text-sm font-medium text-white">45 mins / day</span>
+            <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-1">Institution</span>
+            <span className="text-sm font-medium text-white truncate" title={user?.institution}>{user?.institution || 'Not specified'}</span>
           </GlassCard>
 
           <GlassCard className="p-5 border-white/5 flex flex-col">
             <BarChart className="w-5 h-5 text-amber-400 mb-3" />
-            <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-1">Preferred Difficulty</span>
-            <span className="text-sm font-medium text-white">Intermediate</span>
+            <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-1">Grade Level</span>
+            <span className="text-sm font-medium text-white">{user?.gradeLevel || 'Not specified'}</span>
           </GlassCard>
 
           <GlassCard className="p-5 border-white/5 flex flex-col">
             <BookOpen className="w-5 h-5 text-emerald-400 mb-3" />
-            <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-1">Current Subject</span>
-            <span className="text-sm font-medium text-white">Data Structures</span>
+            <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-1">Field of Study</span>
+            <span className="text-sm font-medium text-white">{user?.fieldOfStudy || 'Not specified'}</span>
           </GlassCard>
         </motion.div>
 

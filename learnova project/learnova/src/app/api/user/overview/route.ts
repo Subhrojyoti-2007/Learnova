@@ -17,7 +17,8 @@ export async function GET() {
     const userId = (session.user as any).id;
 
     // Fetch all related data in parallel
-    const [progress, gaps, tasks, modules] = await Promise.all([
+    const [userDoc, progress, gaps, tasks, modules] = await Promise.all([
+      import('@/lib/models/User').then(m => m.default.findById(userId)),
       UserProgress.findOne({ userId }),
       KnowledgeGap.find({ userId }),
       LearningTask.find({ userId }).sort({ order: 1 }),
@@ -25,7 +26,7 @@ export async function GET() {
     ]);
 
     return NextResponse.json({
-      user: {
+      user: userDoc || {
         name: session.user.name,
         email: session.user.email
       },
