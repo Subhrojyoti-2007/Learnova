@@ -18,7 +18,7 @@ export async function GET() {
 
     // Fetch all related data in parallel
     const [userDoc, progress, gaps, tasks, modules] = await Promise.all([
-      import('@/lib/models/User').then(m => m.default.findById(userId)),
+      import('@/lib/models/User').then(m => m.default.findById(userId).lean()),
       UserProgress.findOne({ userId }),
       KnowledgeGap.find({ userId }),
       LearningTask.find({ userId }).sort({ order: 1 }),

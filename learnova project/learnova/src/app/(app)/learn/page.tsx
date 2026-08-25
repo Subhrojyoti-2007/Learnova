@@ -22,7 +22,7 @@ import {
 import Link from "next/link";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import Tesseract from "tesseract.js";
 import { generateAssessmentPDF, AssessmentData, Question } from "@/lib/pdfGenerator";
@@ -64,6 +64,30 @@ const DEFAULT_SYLLABUS = [
 export default function Learn() {
   const [loadingState, setLoadingState] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AssessmentData & { videoIds: string[], modules?: {title: string, description: string}[], warning?: string } | null>(null);
+  const [persistedModules, setPersistedModules] = useState<any[] | null>(null);
+
+  useEffect(() => {
+    fetch('/api/user/overview')
+      .then(res => res.json())
+      .then(data => {
+        if (data?.user?.currentSyllabusData?.core) {
+          const core = data.user.currentSyllabusData.core;
+          
+          // Restore the entire analysis result so Videos and Questions are preserved too
+          setAnalysisResult({
+            topic: core.topic,
+            videoIds: core.videoIds || [],
+            questions: core.questions || [],
+            modules: core.modules || []
+          });
+          
+          if (core.modules?.length > 0) {
+            setPersistedModules(core.modules);
+          }
+        }
+      })
+      .catch(console.error);
+  }, []);
   
   // Live Quiz State
   const [isQuizActive, setIsQuizActive] = useState(false);
@@ -348,6 +372,41 @@ export default function Learn() {
                   </div>
                 </div>
               </div>
+
+              <div className="mt-8 border-t border-white/10 pt-8">
+                <h4 className="text-sm font-bold text-white/40 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <Network className="w-4 h-4 text-emerald-400" /> Deep Learning Modules Generated
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Link href="/galaxy">
+                    <Button variant="ghost" className="w-full py-8 border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-400 hover:text-emerald-300 gap-3 group">
+                      <Network className="w-5 h-5 group-hover:scale-110 transition-transform" /> 
+                      <div className="text-left">
+                        <div className="font-bold">Knowledge Galaxy</div>
+                        <div className="text-xs text-emerald-400/50">Explore Concept Map</div>
+                      </div>
+                    </Button>
+                  </Link>
+                  <Link href="/diagnose">
+                    <Button variant="ghost" className="w-full py-8 border border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 text-amber-400 hover:text-amber-300 gap-3 group">
+                      <BrainCircuit className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                      <div className="text-left">
+                        <div className="font-bold">Diagnosis Test</div>
+                        <div className="text-xs text-amber-400/50">Identify Weaknesses</div>
+                      </div>
+                    </Button>
+                  </Link>
+                  <Link href="/practice">
+                    <Button variant="ghost" className="w-full py-8 border border-blue-500/20 bg-blue-500/5 hover:bg-blue-500/10 text-blue-400 hover:text-blue-300 gap-3 group">
+                      <Binary className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                      <div className="text-left">
+                        <div className="font-bold">Practice Hub</div>
+                        <div className="text-xs text-blue-400/50">Master 45+ Questions</div>
+                      </div>
+                    </Button>
+                  </Link>
+                </div>
+              </div>
             </GlassCard>
           )}
         </motion.div>
@@ -404,13 +463,13 @@ export default function Learn() {
         {/* ============================================================== */}
         <motion.div variants={itemVariants} className="space-y-4">
           <h2 className="text-sm font-bold text-white/40 uppercase tracking-widest mb-4 flex items-center gap-2">
-            <Layers className="w-4 h-4 text-blue-400" /> {analysisResult?.modules ? 'Live Course Modules' : 'Course Syllabus'}
+            <Layers className="w-4 h-4 text-blue-400" /> {(analysisResult?.modules || persistedModules) ? 'Live Course Modules' : 'Course Syllabus'}
           </h2>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {analysisResult?.modules ? (
+            {(analysisResult?.modules || persistedModules) ? (
               // Dynamic Modules from AI
-              analysisResult.modules.map((module, idx) => (
+              (analysisResult?.modules || persistedModules).map((module: any, idx: number) => (
                 <GlassCard key={idx} className="p-6 flex flex-col h-full border-t-2 border-t-primary shadow-[0_0_20px_rgba(124,58,237,0.1)] relative overflow-hidden transition-all duration-300 hover:bg-white/[0.02]">
                   <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-6 bg-primary/10 text-primary border border-primary/20">
                     <BookOpen className="w-6 h-6" />
