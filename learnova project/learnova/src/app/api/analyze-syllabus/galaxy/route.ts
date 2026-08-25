@@ -16,13 +16,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'No text provided' }, { status: 400 });
     }
 
-    const textLines = text.split('\n').map((l: string) => l.trim()).filter((l: string) => l.length > 3);
-    const t1 = textLines[0] ? textLines[0].substring(0, 30) : "Foundations";
-    const t2 = textLines[1] ? textLines[1].substring(0, 30) : "Core Architecture";
-    const t3 = textLines[2] ? textLines[2].substring(0, 30) : "Data Structures";
-    const t4 = textLines[3] ? textLines[3].substring(0, 30) : "Algorithms";
-    const t5 = textLines[4] ? textLines[4].substring(0, 30) : "Optimization";
-    const t6 = textLines[5] ? textLines[5].substring(0, 30) : "Advanced Systems";
+    const cleanLines = text
+      .split('\n')
+      .map((l: string) => l.trim().replace(/[^\w\s\-\:\.\,]/gi, ''))
+      .filter((l: string) => {
+        const words = l.split(/\s+/).filter(w => w.length > 2);
+        const alphaCount = (l.match(/[a-zA-Z]/g) || []).length;
+        return words.length >= 2 && alphaCount >= 8 && (alphaCount / l.length) > 0.6;
+      });
+
+    const t1 = cleanLines[0] ? cleanLines[0].substring(0, 35) : "Foundational Core & Theory";
+    const t2 = cleanLines[1] ? cleanLines[1].substring(0, 35) : "Architecture & Data Models";
+    const t3 = cleanLines[2] ? cleanLines[2].substring(0, 35) : "Algorithms & Execution";
+    const t4 = cleanLines[3] ? cleanLines[3].substring(0, 35) : "State Management & Verification";
+    const t5 = cleanLines[4] ? cleanLines[4].substring(0, 35) : "Optimization & Scalability";
+    const t6 = cleanLines[5] ? cleanLines[5].substring(0, 35) : "Advanced Systems & Security";
 
     let graphData = {
       nodes: [

@@ -13,22 +13,51 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'No text provided' }, { status: 400 });
     }
 
-    // Extract lines and potential topics from syllabus text for smart fallback
-    const textLines = text.split('\n').map((l: string) => l.trim()).filter((l: string) => l.length > 3);
-    const fallbackTopic = textLines[0] ? textLines[0].substring(0, 50) : "Computer Science & Engineering";
+    // Advanced OCR Noise Cleaner & Academic Topic Extractor
+    const cleanLines = text
+      .split('\n')
+      .map((l: string) => l.trim().replace(/[^\w\s\-\:\.\,]/gi, ''))
+      .filter((l: string) => {
+        // Filter out short garbage, OCR artifacts, or mostly non-alpha strings
+        const words = l.split(/\s+/).filter(w => w.length > 2);
+        const alphaCount = (l.match(/[a-zA-Z]/g) || []).length;
+        return words.length >= 2 && alphaCount >= 8 && (alphaCount / l.length) > 0.6;
+      });
+
+    // Detect academic headings or keywords
+    const academicKeywordRegex = /(course|syllabus|subject|unit|module|chapter|introduction|fundamentals|principles|engineering|computer|science|data|structures|algorithms|programming|database|network|ai|learning|physics|mathematics|management|system)/i;
     
+    let detectedTopic = "";
+    for (const line of cleanLines) {
+      if (academicKeywordRegex.test(line) && line.length < 80) {
+        // Clean line from prefixes like "Course Title:", "Subject:", etc.
+        detectedTopic = line.replace(/^(course\s*(title|name)?|subject|syllabus\s*(for)?|unit\s*\d*|module\s*\d*)\s*[:\-\.]\s*/i, '').trim();
+        if (detectedTopic.length >= 4) break;
+      }
+    }
+
+    if (!detectedTopic) {
+      // Pick the cleanest first line that looks like a title
+      detectedTopic = cleanLines[0] ? cleanLines[0].substring(0, 60) : "Computer Science & Engineering";
+    }
+
+    // Sanitize topic to ensure it's not gibberish
+    const fallbackTopic = detectedTopic.length > 3 ? detectedTopic : "Computer Science & Engineering";
+    
+    // Extract 3 clean module titles
+    const candidateModules = cleanLines.filter(l => l.toLowerCase() !== fallbackTopic.toLowerCase());
     const fallbackModules = [
       { 
-        title: textLines[0] ? textLines[0].substring(0, 40) : "Foundational Concepts & Principles", 
-        description: textLines[1] ? textLines[1].substring(0, 120) : "Core theoretical foundations and basic methodology." 
+        title: candidateModules[0] ? candidateModules[0].substring(0, 45) : "Foundational Concepts & Architecture", 
+        description: candidateModules[1] ? candidateModules[1].substring(0, 120) : "Core theoretical foundations, syntax, and foundational execution models." 
       },
       { 
-        title: textLines[2] ? textLines[2].substring(0, 40) : "Intermediate Implementation & Algorithms", 
-        description: textLines[3] ? textLines[3].substring(0, 120) : "Deep dive into structural execution and analytical frameworks." 
+        title: candidateModules[2] ? candidateModules[2].substring(0, 45) : "Intermediate Implementation & Data Structures", 
+        description: candidateModules[3] ? candidateModules[3].substring(0, 120) : "Deep dive into structural execution, algorithm design, and state management." 
       },
       { 
-        title: textLines[4] ? textLines[4].substring(0, 40) : "Advanced Systems & Optimization", 
-        description: textLines[5] ? textLines[5].substring(0, 120) : "Complex problem-solving, architectural design, and optimization." 
+        title: candidateModules[4] ? candidateModules[4].substring(0, 45) : "Advanced Systems & Performance Optimization", 
+        description: candidateModules[5] ? candidateModules[5].substring(0, 120) : "Complex problem-solving, architectural design patterns, and scaling." 
       }
     ];
 
@@ -48,19 +77,21 @@ export async function POST(req: Request) {
     let topic = fallbackTopic;
     let questions = fallbackQuestions;
     let modules = fallbackModules;
-    let videoIds: string[] = ["Mv9NEXX1VHc", "8lhxIOVNzx4", "zg-ddPbzcKM"];
+    // Verified educational lecture videos as default fallback (Harvard CS50 / MIT OCW / freeCodeCamp)
+    let videoIds: string[] = ["8jLOx1hD3_o", "Mv9NEXX1VHc", "zg-ddPbzcKM"];
 
     // Try Gemini AI with safe fallback
     try {
       if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'dummy_key') {
-        const topicPrompt = `Analyze the following syllabus text and identify the single most prominent educational topic or subject being taught. Return ONLY the topic name, nothing else. \n\nSyllabus Text: ${text.substring(0, 2000)}`;
+        const topicPrompt = `Analyze the following syllabus text and extract the concise academic course title or main subject (e.g. "Data Structures and Algorithms", "Operating Systems", "Organic Chemistry", "Financial Management"). Do NOT return OCR noise or header junk. Return ONLY the clean topic name, nothing else. \n\nSyllabus Text: ${text.substring(0, 2000)}`;
         const topicResponse = await ai.models.generateContent({
           model: 'gemini-3.6-flash',
           contents: topicPrompt,
         });
         
-        if (topicResponse.text?.trim()) {
-          topic = topicResponse.text.trim().replace(/^["']|["']$/g, '');
+        const candidateAiTopic = topicResponse.text?.trim().replace(/^["']|["']$/g, '');
+        if (candidateAiTopic && candidateAiTopic.length >= 4 && candidateAiTopic.length < 80 && !candidateAiTopic.includes('\n')) {
+          topic = candidateAiTopic;
         }
 
         const questionsPrompt = `Generate a detailed assessment for a student studying: "${topic}".
@@ -74,7 +105,7 @@ Distribute as follows:
 Return the result STRICTLY as a JSON array of objects with keys "type", "question", "solution".
 Syllabus: ${text.substring(0, 2000)}`;
 
-        const modulesPrompt = `Based on the following syllabus text, extract exactly 3 distinct learning modules or subtopics.
+        const modulesPrompt = `Based on the following syllabus text, extract exactly 3 distinct learning modules or subtopics for "${topic}".
 Return STRICTLY as a JSON array of objects with keys "title", "description".
 Syllabus: ${text.substring(0, 2000)}`;
 
@@ -104,21 +135,35 @@ Syllabus: ${text.substring(0, 2000)}`;
         }
       }
     } catch (aiErr) {
-      console.warn("Gemini AI call encountered rate limit or quota exhaustion. Employing smart local fallback.", aiErr);
+      console.warn("Gemini AI call rate-limited. Employing smart academic OCR fallback.", aiErr);
     }
 
-    // Try YouTube Fetch with safe fallback
+    // Clean search term for educational YouTube query
+    const cleanSearchTopic = topic.replace(/[^a-zA-Z0-9\s]/g, ' ').trim();
+    const searchQuery = `${cleanSearchTopic} full course tutorial lecture`;
+
+    // Try YouTube Fetch with strict educational filters
     try {
       if (process.env.YOUTUBE_API_KEY) {
-        const youtubeRes = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=3&q=${encodeURIComponent(topic + " tutorial course")}&type=video&key=${process.env.YOUTUBE_API_KEY}`);
+        const youtubeUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=3&q=${encodeURIComponent(searchQuery)}&type=video&videoEmbeddable=true&videoDuration=long&videoCategoryId=27&key=${process.env.YOUTUBE_API_KEY}`;
+        const youtubeRes = await fetch(youtubeUrl);
         const youtubeData = await youtubeRes.json();
-        const fetchedVideos = youtubeData.items?.map((item: any) => item.id?.videoId).filter(Boolean) || [];
+        let fetchedVideos = youtubeData.items?.map((item: any) => item.id?.videoId).filter(Boolean) || [];
+
+        // Fallback without category constraint if 0 educational videos found
+        if (fetchedVideos.length === 0) {
+          const broadUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=3&q=${encodeURIComponent(searchQuery)}&type=video&videoEmbeddable=true&videoDuration=medium&key=${process.env.YOUTUBE_API_KEY}`;
+          const broadRes = await fetch(broadUrl);
+          const broadData = await broadRes.json();
+          fetchedVideos = broadData.items?.map((item: any) => item.id?.videoId).filter(Boolean) || [];
+        }
+
         if (fetchedVideos.length > 0) {
           videoIds = fetchedVideos;
         }
       }
     } catch (ytErr) {
-      console.warn("YouTube fetch error, using default educational videos.", ytErr);
+      console.warn("YouTube fetch error, using curated academic lectures.", ytErr);
     }
 
     // Attempt to save to DB

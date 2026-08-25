@@ -16,10 +16,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'No text provided' }, { status: 400 });
     }
 
-    const textLines = text.split('\n').map((l: string) => l.trim()).filter((l: string) => l.length > 3);
-    const top1 = textLines[0] ? textLines[0].substring(0, 30) : "Foundations";
-    const top2 = textLines[1] ? textLines[1].substring(0, 30) : "Core Execution";
-    const top3 = textLines[2] ? textLines[2].substring(0, 30) : "Advanced Systems";
+    const cleanLines = text
+      .split('\n')
+      .map((l: string) => l.trim().replace(/[^\w\s\-\:\.\,]/gi, ''))
+      .filter((l: string) => {
+        const words = l.split(/\s+/).filter(w => w.length > 2);
+        const alphaCount = (l.match(/[a-zA-Z]/g) || []).length;
+        return words.length >= 2 && alphaCount >= 8 && (alphaCount / l.length) > 0.6;
+      });
+
+    const top1 = cleanLines[0] ? cleanLines[0].substring(0, 35) : "Foundations & Theory";
+    const top2 = cleanLines[1] ? cleanLines[1].substring(0, 35) : "Core Implementation";
+    const top3 = cleanLines[2] ? cleanLines[2].substring(0, 35) : "Advanced Systems";
 
     let diagnosisData = [
       { topic: top1, difficulty: "easy", text: `What is the fundamental purpose of ${top1}?`, options: ["Systematic execution", "Randomized lookup", "Discarding state", "Manual override"], correctOptionIndex: 0, solution: "It establishes the standardized operational baseline for the entire subject." },
