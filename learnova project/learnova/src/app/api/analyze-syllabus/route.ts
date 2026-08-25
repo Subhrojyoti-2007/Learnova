@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
-
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
+import connectToDatabase from '@/lib/db';
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || 'dummy_key' });
 
 export async function POST(req: Request) {
@@ -96,6 +98,17 @@ Do not include markdown blocks outside the JSON array.`;
       modules = JSON.parse(modulesStr);
     } catch (e) {
       console.error("Failed to parse Gemini modules JSON:", modulesStr);
+    }
+
+    // Attempt to save to DB
+    const session = await getServerSession(authOptions);
+    if (session?.user && (session.user as any).id) {
+      await connectToDatabase();
+      const User = (await import('@/lib/models/User')).default;
+      await User.updateOne(
+        { _id: (session.user as any).id },
+        { $set: { "currentSyllabusData.core": { topic: topic, modules, questions } } }
+      );
     }
 
     return NextResponse.json({

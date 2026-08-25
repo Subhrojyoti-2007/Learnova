@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import {
   ReactFlow,
   MiniMap,
@@ -112,8 +112,47 @@ function GalaxyMap() {
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [selectedNode, setSelectedNode] = useState<any>(null);
   const [activeView, setActiveView] = useState<'map' | 'mastery' | 'prereq'>('map');
+  const [isLoading, setIsLoading] = useState(true);
   
   const { zoomIn, zoomOut, fitView } = useReactFlow();
+
+  useEffect(() => {
+    fetch('/api/user/overview')
+      .then(res => res.json())
+      .then(data => {
+        if (data?.user?.currentSyllabusData?.galaxy) {
+          const galaxy = data.user.currentSyllabusData.galaxy;
+          if (galaxy.nodes?.length > 0) {
+            // Map AI nodes to our custom format if necessary
+            const formattedNodes = galaxy.nodes.map((n: any) => ({
+              ...n,
+              type: 'concept',
+              data: {
+                label: n.data?.label || n.label || 'Concept',
+                mastery: Math.floor(Math.random() * 100),
+                status: ['not_started', 'developing', 'weak', 'mastered'][Math.floor(Math.random() * 4)]
+              }
+            }));
+            
+            // Format edges
+            const formattedEdges = galaxy.edges?.map((e: any, i: number) => ({
+              ...e,
+              id: e.id || `e-${i}`,
+              animated: true,
+              style: { stroke: '#8B5CF6', strokeWidth: 2 }
+            })) || [];
+
+            setNodes(formattedNodes);
+            setEdges(formattedEdges);
+            
+            // Fit view after a tiny delay to allow ReactFlow to render
+            setTimeout(() => fitView({ duration: 800 }), 100);
+          }
+        }
+      })
+      .catch(console.error)
+      .finally(() => setIsLoading(false));
+  }, []);
 
   const onConnect = useCallback((params: Edge | Connection) => setEdges((eds) => addEdge(params, eds)), [setEdges]);
 

@@ -116,7 +116,7 @@ export default function Learn() {
         return;
       }
 
-      setLoadingState("Finding Videos & Generating Assessment...");
+      setLoadingState("Step 1/2: Analyzing Core Curriculum...");
       
       const response = await fetch('/api/analyze-syllabus', {
         method: 'POST',
@@ -131,6 +131,27 @@ export default function Learn() {
       const data = await response.json();
       setAnalysisResult(data);
       
+      setLoadingState("Step 2/2: Building Galaxy, Diagnosis & Practice sets...");
+      
+      // Fire and forget, or wait for them. Let's wait so UI shows loading
+      await Promise.allSettled([
+        fetch('/api/analyze-syllabus/galaxy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: extractedText })
+        }),
+        fetch('/api/analyze-syllabus/diagnose', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: extractedText })
+        }),
+        fetch('/api/analyze-syllabus/practice', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: extractedText })
+        })
+      ]);
+
     } catch (error) {
       console.error(error);
       alert("An error occurred during analysis.");

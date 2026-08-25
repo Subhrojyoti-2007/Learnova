@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { XCircle, CheckCircle2, ArrowRight, ArrowLeft, BrainCircuit, Code2, Clock, Target, SkipForward } from "lucide-react";
 import Link from "next/link";
@@ -28,17 +28,35 @@ console.log(mystery(4));`,
 };
 
 export default function Practice() {
+  const [questions, setQuestions] = useState<any[]>([mockQuestion]);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [hasSubmitted, setHasSubmitted] = useState(false);
 
-  const isWrong = hasSubmitted && selectedOption !== mockQuestion.correctAnswer;
-  const isCorrect = hasSubmitted && selectedOption === mockQuestion.correctAnswer;
+  useEffect(() => {
+    fetch('/api/user/overview')
+      .then(res => res.json())
+      .then(data => {
+        if (data?.user?.currentSyllabusData?.practice?.length > 0) {
+          setQuestions(data.user.currentSyllabusData.practice);
+        }
+      })
+      .catch(console.error);
+  }, []);
+
+  const currentQuestion = questions[currentIndex] || mockQuestion;
+
+  const isWrong = hasSubmitted && selectedOption !== currentQuestion.correctAnswer;
+  const isCorrect = hasSubmitted && selectedOption === currentQuestion.correctAnswer;
 
   const handleSubmit = () => {
     setHasSubmitted(true);
   };
 
   const handleReset = () => {
+    if (currentIndex < questions.length - 1) {
+      setCurrentIndex(c => c + 1);
+    }
     setSelectedOption(null);
     setHasSubmitted(false);
   };
@@ -56,16 +74,16 @@ export default function Practice() {
           <h1 className="text-3xl font-bold text-white tracking-tight mb-2">Practice</h1>
           <div className="flex items-center gap-4 text-sm font-medium text-white/50">
             <span className="flex items-center gap-1.5 text-white/70">
-              <Code2 className="w-4 h-4 text-primary" /> Concept: {mockQuestion.concept}
+              <Code2 className="w-4 h-4 text-primary" /> Concept: {currentQuestion.concept}
             </span>
             <span className="w-1 h-1 rounded-full bg-white/20" />
-            <span className="text-amber-400">Difficulty: {mockQuestion.difficulty}</span>
+            <span className="text-amber-400">Difficulty: {currentQuestion.difficulty}</span>
           </div>
         </div>
         
         <div className="flex items-center gap-3">
           <span className="text-sm font-semibold text-white/60 bg-white/5 px-4 py-1.5 rounded-full border border-white/10">
-            Question 3 / 10
+            Question {currentIndex + 1} / {questions.length}
           </span>
         </div>
       </header>
@@ -77,18 +95,19 @@ export default function Practice() {
         {/* Meta tags */}
         <div className="flex flex-wrap items-center gap-3 mb-6">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-bold uppercase tracking-wider">
-            <Target className="w-3.5 h-3.5" /> {mockQuestion.difficulty}
+            <Target className="w-3.5 h-3.5" /> {currentQuestion.difficulty}
           </span>
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-white/5 text-white/50 border border-white/10 text-xs font-bold uppercase tracking-wider">
-            <Clock className="w-3.5 h-3.5" /> {mockQuestion.estimatedTime}
+            <Clock className="w-3.5 h-3.5" /> {currentQuestion.estimatedTime || "1 min"}
           </span>
         </div>
 
         <h2 className="text-xl sm:text-2xl font-medium text-white mb-6 leading-relaxed">
-          {mockQuestion.text}
+          {currentQuestion.text}
         </h2>
 
         {/* Premium Code Block */}
+        {currentQuestion.code && (
         <div className="relative mb-8 group rounded-xl overflow-hidden border border-white/10 bg-[#090812]">
           <div className="absolute top-0 left-0 w-full h-8 bg-white/5 border-b border-white/5 flex items-center px-4 gap-2">
             <div className="w-3 h-3 rounded-full bg-rose-500/50" />
@@ -97,13 +116,10 @@ export default function Practice() {
           </div>
           <pre className="p-6 pt-12 text-sm sm:text-base font-mono leading-loose overflow-x-auto text-blue-300">
             <code>
-{mockQuestion.code.split('\n').map((line, i) => (
+{currentQuestion.code.split('\n').map((line: string, i: number) => (
   <div key={i} className="table-row">
     <span className="table-cell text-white/20 select-none pr-4 text-right w-8">{i + 1}</span>
     <span className="table-cell">
-      {line.replace(/function|return|if/g, (match) => `<span class="text-primary">${match}</span>`)
-           .replace(/mystery|console\.log/g, (match) => `<span class="text-blue-400">${match}</span>`)
-           .replace(/[0-9]+/g, (match) => `<span class="text-amber-400">${match}</span>`)}
       <span dangerouslySetInnerHTML={{ 
         __html: line
           .replace(/function|return|if/g, '<span class="text-primary">$&</span>')
@@ -116,16 +132,17 @@ export default function Practice() {
             </code>
           </pre>
         </div>
+        )}
 
         {/* Answer Options */}
         <div className="space-y-4 mb-10">
-          {mockQuestion.options.map((option, idx) => {
+          {(currentQuestion.options || ["True", "False", "Not specified", "All of the above"]).map((option: string, idx: number) => {
             const isSelected = selectedOption === idx;
             const labels = ['A', 'B', 'C', 'D'];
             
             let optionState = "default";
             if (hasSubmitted) {
-              if (idx === mockQuestion.correctAnswer) optionState = "correct";
+              if (idx === currentQuestion.correctAnswer) optionState = "correct";
               else if (isSelected) optionState = "incorrect";
               else optionState = "disabled";
             } else if (isSelected) {

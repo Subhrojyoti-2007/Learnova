@@ -10,6 +10,7 @@ export interface IUser extends Document {
   learningGoals?: string;
   createdAt: Date;
   updatedAt: Date;
+  currentSyllabusData?: any;
 }
 
 const UserSchema: Schema = new Schema(
@@ -47,6 +48,10 @@ const UserSchema: Schema = new Schema(
     learningGoals: {
       type: String,
       default: '',
+    },
+    currentSyllabusData: {
+      type: Schema.Types.Mixed,
+      default: null,
     },
   },
   {

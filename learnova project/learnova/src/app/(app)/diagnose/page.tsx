@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, ArrowLeft, BrainCircuit, Activity, Network, CheckCircle2, Play, Sparkles } from "lucide-react";
 import Link from "next/link";
@@ -46,10 +46,20 @@ export default function DiagnosticTest() {
   const [view, setView] = useState<ViewState>('intro');
   const [currentStep, setCurrentStep] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
+  const [questions, setQuestions] = useState<any[]>(mockQuestions);
+
+  useEffect(() => {
+    fetch('/api/user/overview')
+      .then(res => res.json())
+      .then(data => {
+        if (data?.user?.currentSyllabusData?.diagnose?.length > 0) {
+          setQuestions(data.user.currentSyllabusData.diagnose);
+        }
+      })
+      .catch(console.error);
+  }, []);
   
-  // We'll just map the 5 mock questions but pretend there are 10 for the UI text if we wanted, 
-  // but it's cleaner to just show 5 of 5 for actual progress.
-  const totalQuestions = mockQuestions.length;
+  const totalQuestions = questions.length;
 
   const handleNext = () => {
     if (currentStep < totalQuestions - 1) {
@@ -163,12 +173,12 @@ export default function DiagnosticTest() {
               
               <div className="mb-10">
                 <h3 className="text-2xl md:text-3xl font-medium text-white leading-relaxed">
-                  {mockQuestions[currentStep].text}
+                  {questions[currentStep]?.text || questions[currentStep]?.question}
                 </h3>
               </div>
 
               <div className="space-y-4">
-                {mockQuestions[currentStep].options.map((option, idx) => {
+                {(questions[currentStep]?.options || ["True", "False", "Not specified", "All of the above"]).map((option: string, idx: number) => {
                   const isSelected = selectedOption === idx;
                   const labels = ['A', 'B', 'C', 'D'];
                   
